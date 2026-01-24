@@ -48,6 +48,8 @@ contract MerkleAirdropTest is Test, ZkSyncChainChecker {
     /// @notice Complete Merkle proof array for claim verification
     bytes32[] public PROOF = [proofOne, proofTwo];
 
+    address gasPayer;
+
     /// @notice Test user address (derived from the whitelist)
     address user;
 
@@ -69,16 +71,16 @@ contract MerkleAirdropTest is Test, ZkSyncChainChecker {
             // Deploy with script for standard EVM chains
             DeployMerkleAirdrop deployer = new DeployMerkleAirdrop();
             (airdrop, token) = deployer.deployMerkleAirdrop();
-            // Set user to the whitelisted address that matches our PROOF
-            user = 0x6CA6d1e2D5347Bfab1d91e883F1915560e09129D;
         } else {
             // Direct deployment for ZkSync chains
             token = new HashToken();
             airdrop = new MerkleAirdrop(ROOT, address(token));
             token.mint(token.owner(), AMOUNT_TO_SEND);
             token.transfer(address(airdrop), AMOUNT_TO_SEND);
-            (user, userPrivKey) = makeAddrAndKey("user");
         }
+        // Set user with a known private key for signing in both paths
+        (user, userPrivKey) = makeAddrAndKey("user");
+        gasPayer = makeAddr("gasPayer");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -94,9 +96,12 @@ contract MerkleAirdropTest is Test, ZkSyncChainChecker {
      */
     function testUserCanClaimAirdrop() public {
         uint256 startingBalance = token.balanceOf(user);
+        bytes32 digest = airdrop.getMessageHash(user, AMOUNT_TO_CLAIM);
 
-        vm.prank(user);
-        airdrop.claim(user, AMOUNT_TO_CLAIM, PROOF);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivKey, digest);
+
+        vm.prank(gasPayer);
+        airdrop.claim(user, AMOUNT_TO_CLAIM, PROOF, v, r, s);
 
         uint256 endingBalance = token.balanceOf(user);
         console.log("EndingBalance:", endingBalance);
