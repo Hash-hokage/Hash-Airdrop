@@ -48,6 +48,7 @@ contract MerkleAirdropTest is Test, ZkSyncChainChecker {
     /// @notice Complete Merkle proof array for claim verification
     bytes32[] public PROOF = [proofOne, proofTwo];
 
+    /// @notice Address that pays gas fees for claim transactions (meta-transaction relayer)
     address gasPayer;
 
     /// @notice Test user address (derived from the whitelist)
